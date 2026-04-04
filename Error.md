@@ -1,33 +1,22 @@
-Looking at the screenshot and the code, I can now pinpoint the exact cause. The bug on real devices (Expo Go) vs emulators comes down to two compounding issues:
-Root Cause 1: Animated.View inside a Marker
-React Native Maps renders Marker children into a native view layer. On real iOS/Android devices, Animated.View triggers a different compositing path that clips its own content unpredictably. Emulators are more lenient with this.
-Root Cause 2: No explicit dimensions + padding instead of alignItems/justifyContent
-Animated.View sizes itself dynamically from padding, which native map markers can't reliably measure on real hardware.
-The fix — replace Animated.View with a plain View and give it explicit dimensions:
-tsx{/* Truck Marker */}
-{showTruck && (
-  <Marker coordinate={truckData.location} anchor={{ x: 0.5, y: 0.5 }}>
-    <View style={styles.truckMarker}>
-      <IconSymbol name="truck.fill" size={24} color="#FFFFFF" />
-    </View>
-  </Marker>
-)}
-And update the style:
-tstruckMarker: {
-  backgroundColor: GTrashColors.truck,
-  width: 48,
-  height: 48,
-  borderRadius: 24,          // exactly half → clean circle
-  alignItems: "center",      // replaces padding
-  justifyContent: "center",  // replaces padding
-  borderWidth: 3,
-  borderColor: "#FFFFFF",
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.3,
-  shadowRadius: 4,
-  elevation: 5,
-  // ❌ removed: padding: 10
-  // ❌ removed: Animated.View wrapper (no animation was actually being used)
-},
-The Animated.View wasn't animating anything on the truck marker anyway — it had no Animated.Value attached to its style — so switching to View loses nothing while fixing the native clipping bug on real devices.
+In React Native, markers or icons on a map (commonly using react-native-maps) often appear "cut off" or clipped due to how Android renders markers as bitmaps or because of fixed container sizes. 
+Common Causes & Solutions
+Android Bitmap Clipping: On Android, custom markers are often rendered as static bitmaps. If the icon exceeds the initial bounding box, it gets clipped.
+Solution: Use a parent <View> with explicit padding or margin around the icon to ensure the "hitbox" is large enough to contain the entire graphic.
+Missing Width/Height on Custom Markers: If using a custom component inside a <Marker>, the map might not correctly calculate the size.
+Solution: Explicitly define the width and height in the style of the custom marker's root <View>.
+Anchor Point Issues: The icon might be correctly rendered but positioned such that part of it is "off" the designated coordinate area.
+Solution: Adjust the anchor prop (e.g., anchor={{ x: 0.5, y: 0.5 }}) to center the icon on the coordinate.
+Image Scaling (Android): When scaling marker images with libraries like react-native-reanimated, they may clip on Android.
+Solution: For complex animations or scaling, use the patch-package tool to apply community fixes to the react-native-maps library that address Android clipping.
+Icon Asset Padding: Sometimes the source image itself is the issue.
+Solution: Ensure the source .png or SVG has enough transparent "safe space" around the edges. For app icons specifically, Android recommends leaving the outer 1/6th of the image transparent. 
+GitHub
+GitHub
+ +9
+Quick Debugging Steps
+Add Background Color: Set a temporary backgroundColor: 'red' on your marker's container to see if the container itself is smaller than the icon.
+Toggle tracksViewChanges: Setting tracksViewChanges={false} after the initial render can sometimes resolve rendering artifacts on Android.
+Use icon prop vs. Children: Sometimes using the icon={require('./path')} prop instead of passing an <Image> as a child is more stable on Google Maps. 
+Stack Overflow
+Stack Overflow
+ +4
