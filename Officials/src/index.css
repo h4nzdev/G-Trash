@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@theme {
+  /* GTrash Color Scheme - Matching Mobile Apps */
+  --color-primary: #2e7d32;
+  --color-primary-light: #4caf50;
+  --color-primary-dark: #1b5e20;
+  --color-primary-muted: #e8f5e9;
+
+  --color-gold: #ffd700;
+  --color-gold-light: #ffe44d;
+  --color-gold-dark: #ffc107;
+
+  --color-safe: #4caf50;
+  --color-moderate: #ffc107;
+  --color-high: #f44336;
+
+  --color-text: #1b1f22;
+  --color-text-secondary: #65676b;
+  --color-text-muted: #9ca3af;
+
+  --color-beige: #f5f5dc;
+  --color-beige-dark: #e0e0c8;
+
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-info: #3b82f6;
+  --color-error: #ef4444;
+
+  --color-neutral-50: #f9fafb;
+  --color-neutral-100: #f3f4f6;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-300: #d1d5db;
+  --color-neutral-400: #9ca3af;
+  --color-neutral-500: #6b7280;
+  --color-neutral-600: #4b5563;
+  --color-neutral-700: #374151;
+  --color-neutral-800: #1f2937;
+  --color-neutral-900: #111827;
+}
+

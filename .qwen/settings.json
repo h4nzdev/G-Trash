@@ -9,7 +9,11 @@
       "Bash(taskkill *)",
       "Bash(npm *)",
       "Bash(del *)",
-      "Bash(copy *)"
+      "Bash(copy *)",
+      "Bash(mkdir *)",
+      "Bash(timeout *)",
+      "Bash(curl *)",
+      "Bash(tasklist)"
     ]
   },
   "$version": 3

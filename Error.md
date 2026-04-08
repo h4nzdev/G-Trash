@@ -1,22 +1,92 @@
-In React Native, markers or icons on a map (commonly using react-native-maps) often appear "cut off" or clipped due to how Android renders markers as bitmaps or because of fixed container sizes. 
-Common Causes & Solutions
-Android Bitmap Clipping: On Android, custom markers are often rendered as static bitmaps. If the icon exceeds the initial bounding box, it gets clipped.
-Solution: Use a parent <View> with explicit padding or margin around the icon to ensure the "hitbox" is large enough to contain the entire graphic.
-Missing Width/Height on Custom Markers: If using a custom component inside a <Marker>, the map might not correctly calculate the size.
-Solution: Explicitly define the width and height in the style of the custom marker's root <View>.
-Anchor Point Issues: The icon might be correctly rendered but positioned such that part of it is "off" the designated coordinate area.
-Solution: Adjust the anchor prop (e.g., anchor={{ x: 0.5, y: 0.5 }}) to center the icon on the coordinate.
-Image Scaling (Android): When scaling marker images with libraries like react-native-reanimated, they may clip on Android.
-Solution: For complex animations or scaling, use the patch-package tool to apply community fixes to the react-native-maps library that address Android clipping.
-Icon Asset Padding: Sometimes the source image itself is the issue.
-Solution: Ensure the source .png or SVG has enough transparent "safe space" around the edges. For app icons specifically, Android recommends leaving the outer 1/6th of the image transparent. 
-GitHub
-GitHub
- +9
-Quick Debugging Steps
-Add Background Color: Set a temporary backgroundColor: 'red' on your marker's container to see if the container itself is smaller than the icon.
-Toggle tracksViewChanges: Setting tracksViewChanges={false} after the initial render can sometimes resolve rendering artifacts on Android.
-Use icon prop vs. Children: Sometimes using the icon={require('./path')} prop instead of passing an <Image> as a child is more stable on Google Maps. 
-Stack Overflow
-Stack Overflow
- +4
+PS C:\Users\hanzc\Documents\Gtrash\Resident> npx expo start -c
+env: load .env
+env: export EXPO_PUBLIC_OPENROUTESERVICE_API_KEY EXPO_PUBLIC_API_URL
+Starting project at C:\Users\hanzc\Documents\Gtrash\Resident
+React Compiler enabled
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+█ ▄▄▄▄▄ █▄▄████ █▀█ ▄▄▄▄▄ █
+█ █   █ █ ▀█ ▄ █▀ █ █   █ █
+█ █▄▄▄█ █▄ ▄▄▀▀█▄▀█ █▄▄▄█ █
+█▄▄▄▄▄▄▄█▄▀▄▀▄█ ▀ █▄▄▄▄▄▄▄█
+█ ▄▄ █▀▄▀▄▀███▀▀▄▄▄██▄ ▄▀▄█
+█▀▀▄   ▄▀███▀▀ ▄█▀█ ▀██▀███
+██▀▀▀▀▄▄█▄ ▀ █ █▀▄█ ▄ █ █▀█
+█▀▄█▀▄ ▄██▀▀█ ▄██ ▀▀█▀▀█ ▀█
+███▄█▄█▄▄  ▄▄▀  ▄ ▄▄▄ ▀▄█▀█
+█ ▄▄▄▄▄ ████▄ █▀█ █▄█ █▄ ▄█
+█ █   █ █▀  ▄▀▀▀▀▄▄   █▀▀ █
+█ █▄▄▄█ █ ▄▄▄▄▀▄▀▄▀▄█▄▄ ▄██
+█▄▄▄▄▄▄▄█▄████▄█▄██████▄▄▄█
+
+› Metro waiting on exp://192.168.8.100:8081
+› Scan the QR code above with Expo Go (Android) or the Camera app (iOS)
+
+› Web is waiting on http://localhost:8081
+
+› Using Expo Go
+› Press s │ switch to development build
+
+› Press a │ open Android
+› Press w │ open web
+
+› Press j │ open debugger
+› Press r │ reload app
+› Press m │ toggle menu
+› shift+m │ more tools
+› Press o │ open project code in your editor
+
+› Press ? │ show all commands
+
+Logs for your project will appear below. Press Ctrl+C to exit.
+Android Bundled 29990ms node_modules\expo-router\entry.js (1519 modules)
+ WARN  🚨 React Native's New Architecture is always enabled in Expo Go, but it is explicitly disabled in your project's app config. This may lead to unexpected behavior when creating a production or development build. Remove "newArchEnabled": false from your app.json.        
+Learn more: https://docs.expo.dev/guides/new-architecture/
+ ERROR  [Error: Cannot use `href` and `tabBarButton` together.] 
+
+Call Stack
+  screens.map$argument_0 (node_modules\expo-router\build\layouts\TabsClient.js)
+  map (<native>)
+  <anonymous> (node_modules\expo-router\build\layouts\TabsClient.js)
+  <anonymous> (node_modules\expo-router\build\layouts\withLayoutContext.js)
+  callComponent.reactStackBottomFrame (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js)
+  renderWithHooks (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js)
+  updateForwardRef (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js)
+  beginWork (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js)
+  runWithFiberInDEV (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js)
+  performUnitOfWork (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js)
+  workLoopSync (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js)
+  renderRootSync (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js)
+  performWorkOnRoot (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js)
+  performSyncWorkOnRoot (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js)
+  flushSyncWorkAcrossRoots_impl (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js)
+  processRootScheduleInMicrotask (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js)
+  scheduleMicrotask$argument_0 (node_modules\react-native\Libraries\Renderer\implementations\ReactFabric-dev.js)
+
+Call Stack
+  Object.assign$argument_0 (node_modules\expo-router\build\layouts\TabsClient.js)
+  TabLayout (app\(tabs)\_layout.tsx)
+  BaseRoute (node_modules\expo-router\build\useScreens.js)
+  SceneView (node_modules\@react-navigation\core\lib\module\SceneView.js)
+  render (node_modules\@react-navigation\core\lib\module\useDescriptors.js)
+  routes.reduce$argument_0 (node_modules\@react-navigation\core\lib\module\useDescriptors.js)
+  reduce (<native>)
+  useDescriptors (node_modules\@react-navigation\core\lib\module\useDescriptors.js)
+  useNavigationBuilder (node_modules\@react-navigation\core\lib\module\useNavigationBuilder.js)
+  NativeStackNavigator (node_modules\expo-router\build\fork\native-stack\createNativeStackNavigator.js)
+  <anonymous> (node_modules\expo-router\build\layouts\withLayoutContext.js)
+  Object.assign$argument_0 (node_modules\expo-router\build\layouts\StackClient.js)
+  RootLayout (app\_layout.tsx)
+  BaseRoute (node_modules\expo-router\build\useScreens.js)
+  SceneView (node_modules\@react-navigation\core\lib\module\SceneView.js)
+  render (node_modules\@react-navigation\core\lib\module\useDescriptors.js)
+  routes.reduce$argument_0 (node_modules\@react-navigation\core\lib\module\useDescriptors.js)
+  reduce (<native>)
+  useDescriptors (node_modules\@react-navigation\core\lib\module\useDescriptors.js)
+  useNavigationBuilder (node_modules\@react-navigation\core\lib\module\useNavigationBuilder.js)
+  Content (node_modules\expo-router\build\ExpoRoot.js)
+  ContextNavigator (node_modules\expo-router\build\ExpoRoot.js)
+  ExpoRoot (node_modules\expo-router\build\ExpoRoot.js)
+  App (node_modules\expo-router\build\qualified-entry.js)
+  WithDevTools (node_modules\expo\src\launch\withDevTools.tsx)
