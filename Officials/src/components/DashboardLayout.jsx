@@ -16,6 +16,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  BarChart,
 } from "lucide-react";
 
 const DashboardLayout = ({ children }) => {
@@ -28,7 +29,7 @@ const DashboardLayout = ({ children }) => {
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "Data Reports", href: "/dashboard/reports", icon: BarChart3 },
-    { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+    { name: "Analytics", href: "/dashboard/analytics", icon: BarChart },
     { name: "Heatmap", href: "/dashboard/heatmap", icon: Map },
     { name: "Truck Tracking", href: "/dashboard/trucks", icon: Truck },
     { name: "Routes", href: "/dashboard/routes", icon: Route },

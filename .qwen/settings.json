@@ -13,7 +13,17 @@
       "Bash(mkdir *)",
       "Bash(timeout *)",
       "Bash(curl *)",
-      "Bash(tasklist)"
+      "Bash(tasklist)",
+      "Read(C:\\Users/**)",
+      "Read(C:\\Users\\hanzc\\Documents/**)",
+      "Bash(type *)",
+      "Bash(sqlite3 *)",
+      "Bash(dir *)",
+      "Bash(ipconfig)",
+      "Bash(python *)",
+      "Bash(f *)",
+      "Bash('curl -s -x post http://localhost:3003/api/auth/login -h \"content-type: application/json\" -d \"{\\\"email\\\":\\\"admin@gtrash.com\\\",\\\"password\\\":\\\"password123\\\"}\"')",
+      "Bash(do *)"
     ]
   },
   "$version": 3

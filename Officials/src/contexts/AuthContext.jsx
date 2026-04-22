@@ -1,100 +1,72 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from "@/services/apiClient";
 
 const AuthContext = createContext(null);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
 };
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isChecking, setIsChecking] = useState(true);
 
+  // Check localStorage on mount
   useEffect(() => {
-    // Check if user is already logged in on mount
-    const storedUser = localStorage.getItem('gtrash_official_user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Failed to parse stored user:', error);
-        localStorage.removeItem('gtrash_official_user');
+    try {
+      const stored = localStorage.getItem("gtrash_official_user");
+      if (stored) {
+        const userData = JSON.parse(stored);
+        if (userData && userData.accessToken) {
+          setUser(userData);
+        } else {
+          localStorage.removeItem("gtrash_official_user");
+        }
       }
+    } catch (e) {
+      console.error("Failed to load stored user:", e);
+      localStorage.removeItem("gtrash_official_user");
     }
-    setIsLoading(false);
+    setIsChecking(false);
   }, []);
 
   const login = async (email, password) => {
-    // Mock authentication - replace with real API call
-    const mockUsers = [
-      {
-        id: '1',
-        email: 'admin@gtrash.com',
-        password: 'admin123',
-        fullName: 'Admin User',
-        role: 'admin',
-        barangay: 'All Barangays',
-      },
-      {
-        id: '2',
-        email: 'official@lahug.com',
-        password: 'official123',
-        fullName: 'Barangay Captain - Lahug',
-        role: 'official',
-        barangay: 'Lahug',
-      },
-      {
-        id: '3',
-        email: 'official@apas.com',
-        password: 'official123',
-        fullName: 'Barangay Captain - Apas',
-        role: 'official',
-        barangay: 'Apas',
-      },
-    ];
+    const response = await api.post("/auth/login", { email, password });
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
+    if (response.data.success && response.data.data) {
+      const { accessToken, refreshToken, user: userData } = response.data.data;
+      const storedUser = {
+        ...userData,
+        accessToken,
+        refreshToken,
+      };
 
-    const foundUser = mockUsers.find(
-      u => u.email === email && u.password === password
-    );
-
-    if (!foundUser) {
-      throw new Error('Invalid email or password');
+      localStorage.setItem("gtrash_official_user", JSON.stringify(storedUser));
+      setUser(storedUser);
+      return storedUser;
     }
 
-    const { password: _, ...userWithoutPassword } = foundUser;
-    setUser(userWithoutPassword);
-    localStorage.setItem('gtrash_official_user', JSON.stringify(userWithoutPassword));
-    return userWithoutPassword;
+    throw new Error(response.data.message || "Login failed");
   };
 
   const logout = () => {
+    localStorage.removeItem("gtrash_official_user");
     setUser(null);
-    localStorage.removeItem('gtrash_official_user');
-    sessionStorage.clear();
   };
 
-  const updateProfile = async (updates) => {
-    const updatedUser = { ...user, ...updates };
-    setUser(updatedUser);
-    localStorage.setItem('gtrash_official_user', JSON.stringify(updatedUser));
-    return updatedUser;
-  };
-
-  const value = {
-    user,
-    isLoading,
-    login,
-    logout,
-    updateProfile,
-    isAuthenticated: !!user,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isChecking,
+        login,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};;

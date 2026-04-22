@@ -3,9 +3,9 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isChecking } = useAuth();
 
-  if (isLoading) {
+  if (isChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50">
         <div className="text-center">
