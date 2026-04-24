@@ -26,10 +26,10 @@ L.Icon.Default.mergeOptions({
 
 // Custom truck icon
 function createTruckIcon(color = "#22C55E") {
-  // Smaller marker to avoid clipping; uses centered anchor
-  const size = 28; // px
-  const border = 2; // px
+  const size = 28;
+  const border = 2;
   const svgSize = 16;
+
   return L.divIcon({
     className: "custom-truck-marker",
     html: `
@@ -52,7 +52,7 @@ function createTruckIcon(color = "#22C55E") {
           <circle cx="17" cy="18" r="2"/>
         </svg>
       </div>
-    ",
+    `,
     iconSize: [size, size],
     iconAnchor: [Math.round(size / 2), Math.round(size / 2)],
     popupAnchor: [0, -Math.round(size / 2) - 2],
@@ -66,6 +66,7 @@ const DEFAULT_ZOOM = 13;
 // Map fit component to auto-center on truck locations
 function MapFit({ trucks, routes }) {
   const map = useMap();
+
   useEffect(() => {
     if (trucks.length > 0) {
       const bounds = L.latLngBounds(
@@ -92,6 +93,7 @@ function MapFit({ trucks, routes }) {
       }
     }
   }, [trucks, routes, map]);
+
   return null;
 }
 
@@ -252,7 +254,6 @@ const TruckTrackingPage = () => {
       setIsLoading(true);
       setError(null);
 
-      // Fetch truck locations from api client and routes via routesService
       const locationsPromise = api.get("/trucks/locations");
       const routesPromise = routesService.getRoutes();
 
@@ -266,7 +267,6 @@ const TruckTrackingPage = () => {
       }
       setRoutes(routesData || []);
 
-      // If user hasn't chosen a route yet, prefer the Lahug route (match by name)
       if (
         (selectedRoute === "all" || !selectedRoute) &&
         Array.isArray(routesData) &&
@@ -278,7 +278,6 @@ const TruckTrackingPage = () => {
         if (lahugRoute) setSelectedRoute(lahugRoute.id);
       }
 
-      // For routes without boundary coords, attempt to compute geometry via OpenRouteService
       try {
         const enriched = await Promise.all(
           (routesData || []).map(async (r) => {
@@ -288,8 +287,6 @@ const TruckTrackingPage = () => {
             try {
               const geom = await routesService.getOpenRouteGeometry(r);
               if (geom && geom.length > 0) {
-                // attach as boundaryCoords in same shape used elsewhere
-                // keep original if present
                 r.boundaryCoords = geom;
               }
             } catch (err) {
@@ -314,8 +311,6 @@ const TruckTrackingPage = () => {
 
   useEffect(() => {
     fetchData();
-
-    // Auto-refresh every 15 seconds to get latest truck locations
     const interval = setInterval(fetchData, 15000);
     return () => clearInterval(interval);
   }, []);
@@ -533,8 +528,6 @@ const TruckTrackingPage = () => {
                 } else if (computedStatus === "Idle") {
                   markerColor = "#F59E0B";
                 }
-
-                const isSelected = selectedTruck === truck.id;
 
                 return (
                   <Marker

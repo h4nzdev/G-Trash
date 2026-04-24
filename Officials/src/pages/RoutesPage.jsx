@@ -26,6 +26,12 @@ import {
   Maximize2,
   Eye,
   EyeOff,
+  X,
+  Save,
+  RefreshCw,
+  Home,
+  Building2,
+  AlertTriangle,
 } from "lucide-react";
 import {
   MapContainer,
@@ -89,6 +95,23 @@ function MapFit({ routes, selectedRoute }) {
   return null;
 }
 
+// Preview Map component for modal
+function RoutePreviewMap({ startPoint, endPoint, waypoints = [] }) {
+  const map = useMap();
+
+  React.useEffect(() => {
+    if (startPoint && endPoint) {
+      const bounds = L.latLngBounds([startPoint, endPoint]);
+      if (waypoints.length > 0) {
+        waypoints.forEach((wp) => bounds.extend(wp));
+      }
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [startPoint, endPoint, waypoints, map]);
+
+  return null;
+}
+
 // Custom Tooltip
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -106,6 +129,763 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
+// New Route Modal Component
+// New Route Modal Component - FIXED VERSION
+const NewRouteModal = ({ isOpen, onClose, onSave, trucks = [] }) => {
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState({
+    name: "",
+    barangay: "",
+    truck: "",
+    driver: "",
+    startPoint: { address: "", lat: null, lng: null },
+    endPoint: { address: "", lat: null, lng: null },
+    waypoints: [],
+    schedule: "",
+    duration: "",
+    distance: "",
+    estimatedWaste: "",
+    notes: "",
+  });
+
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [geocodeError, setGeocodeError] = useState("");
+  const [previewCoordinates, setPreviewCoordinates] = useState([]);
+
+  // Mock geocoding function (replace with actual API like Nominatim)
+  const geocodeAddress = async (address) => {
+    setIsGeocoding(true);
+    setGeocodeError("");
+
+    // Simulate API call - replace with actual geocoding service
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // Mock coordinates based on address
+        const mockCoordinates = {
+          ayala: { lat: 10.3175, lng: 123.905 },
+          "sm city": { lat: 10.311, lng: 123.918 },
+          "it park": { lat: 10.3275, lng: 123.907 },
+          banilad: { lat: 10.342, lng: 123.912 },
+          lahug: { lat: 10.3328, lng: 123.901 },
+          capitol: { lat: 10.315, lng: 123.89 },
+          mabolo: { lat: 10.32, lng: 123.88 },
+          guadalupe: { lat: 10.3157, lng: 123.8854 },
+          default: { lat: 10.3157, lng: 123.8854 },
+        };
+
+        const lowerAddress = address.toLowerCase();
+        let coords = mockCoordinates.default;
+
+        for (const [key, value] of Object.entries(mockCoordinates)) {
+          if (lowerAddress.includes(key)) {
+            coords = value;
+            break;
+          }
+        }
+
+        resolve(coords);
+        setIsGeocoding(false);
+      }, 1000);
+    });
+  };
+
+  const handleAddressChange = async (field, address) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: { ...prev[field], address, lat: null, lng: null },
+    }));
+
+    if (address.length > 5) {
+      const coords = await geocodeAddress(address);
+      if (coords) {
+        setFormData((prev) => ({
+          ...prev,
+          [field]: {
+            ...prev[field],
+            address,
+            lat: coords.lat,
+            lng: coords.lng,
+          },
+        }));
+      }
+    }
+  };
+
+  const addWaypoint = () => {
+    setFormData((prev) => ({
+      ...prev,
+      waypoints: [
+        ...prev.waypoints,
+        { address: "", lat: null, lng: null, name: "" },
+      ],
+    }));
+  };
+
+  const updateWaypoint = async (index, address) => {
+    const updatedWaypoints = [...formData.waypoints];
+    updatedWaypoints[index] = {
+      ...updatedWaypoints[index],
+      address,
+      lat: null,
+      lng: null,
+    };
+    setFormData((prev) => ({ ...prev, waypoints: updatedWaypoints }));
+
+    if (address.length > 5) {
+      const coords = await geocodeAddress(address);
+      if (coords) {
+        updatedWaypoints[index] = {
+          ...updatedWaypoints[index],
+          address,
+          lat: coords.lat,
+          lng: coords.lng,
+        };
+        setFormData((prev) => ({ ...prev, waypoints: updatedWaypoints }));
+      }
+    }
+  };
+
+  const removeWaypoint = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      waypoints: prev.waypoints.filter((_, i) => i !== index),
+    }));
+  };
+
+  const calculateRoute = () => {
+    const coordinates = [];
+    if (formData.startPoint.lat) {
+      coordinates.push([formData.startPoint.lat, formData.startPoint.lng]);
+    }
+    formData.waypoints.forEach((wp) => {
+      if (wp.lat) coordinates.push([wp.lat, wp.lng]);
+    });
+    if (formData.endPoint.lat) {
+      coordinates.push([formData.endPoint.lat, formData.endPoint.lng]);
+    }
+    setPreviewCoordinates(coordinates);
+
+    // Calculate approximate distance
+    if (coordinates.length > 1) {
+      let totalDistance = 0;
+      for (let i = 0; i < coordinates.length - 1; i++) {
+        const distance = calculateDistance(coordinates[i], coordinates[i + 1]);
+        totalDistance += distance;
+      }
+      setFormData((prev) => ({
+        ...prev,
+        distance: `${totalDistance.toFixed(1)} km`,
+        duration: `${Math.ceil(totalDistance * 2)} hours`,
+      }));
+    }
+  };
+
+  const calculateDistance = (point1, point2) => {
+    const R = 6371; // Earth's radius in km
+    const lat1 = (point1[0] * Math.PI) / 180;
+    const lat2 = (point2[0] * Math.PI) / 180;
+    const deltaLat = ((point2[0] - point1[0]) * Math.PI) / 180;
+    const deltaLng = ((point2[1] - point1[1]) * Math.PI) / 180;
+    const a =
+      Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+      Math.cos(lat1) *
+        Math.cos(lat2) *
+        Math.sin(deltaLng / 2) *
+        Math.sin(deltaLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const handleSubmit = () => {
+    const newRoute = {
+      id: `route-${Date.now()}`,
+      name: formData.name,
+      barangay: formData.barangay,
+      truck: formData.truck,
+      driver: formData.driver,
+      schedule: formData.schedule,
+      duration: formData.duration || "3 hours",
+      distance: formData.distance || "10 km",
+      status: "Pending",
+      coverage: 0,
+      efficiency: 0,
+      totalWaste: 0,
+      targetWaste: parseInt(formData.estimatedWaste) || 2000,
+      color: "#" + Math.floor(Math.random() * 16777215).toString(16),
+      coordinates: previewCoordinates,
+      stops: formData.waypoints.map((wp, idx) => ({
+        name: wp.name || `Stop ${idx + 1}`,
+        time: `${8 + idx}:00 AM`,
+        lat: wp.lat,
+        lng: wp.lng,
+        collected: 0,
+        target: Math.floor(
+          parseInt(formData.estimatedWaste) / (formData.waypoints.length + 2) ||
+            200,
+        ),
+      })),
+      performanceHistory: [
+        { date: "Mon", efficiency: 0, waste: 0 },
+        { date: "Tue", efficiency: 0, waste: 0 },
+        { date: "Wed", efficiency: 0, waste: 0 },
+        { date: "Thu", efficiency: 0, waste: 0 },
+        { date: "Fri", efficiency: 0, waste: 0 },
+      ],
+    };
+
+    onSave(newRoute);
+    onClose();
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      barangay: "",
+      truck: "",
+      driver: "",
+      startPoint: { address: "", lat: null, lng: null },
+      endPoint: { address: "", lat: null, lng: null },
+      waypoints: [],
+      schedule: "",
+      duration: "",
+      distance: "",
+      estimatedWaste: "",
+      notes: "",
+    });
+    setPreviewCoordinates([]);
+    setStep(1);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        {/* Background overlay */}
+        <div
+          className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+          onClick={onClose}
+        />
+
+        {/* Modal panel */}
+        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+          {/* Header */}
+          <div className="bg-green-600 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-white bg-opacity-20 rounded-lg p-2">
+                  <Plus className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">
+                    Create New Route
+                  </h3>
+                  <p className="text-green-100 text-sm">Step {step} of 3</p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-white hover:text-green-100"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* Steps Indicator */}
+          <div className="px-6 pt-6">
+            <div className="flex items-center justify-between">
+              {[
+                { step: 1, label: "Basic Info" },
+                { step: 2, label: "Route Details" },
+                { step: 3, label: "Review" },
+              ].map((s) => (
+                <div key={s.step} className="flex items-center gap-2">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      step >= s.step
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-200 text-gray-500"
+                    }`}
+                  >
+                    {step > s.step ? (
+                      <CheckCircle className="h-4 w-4" />
+                    ) : (
+                      s.step
+                    )}
+                  </div>
+                  <span className="text-sm font-medium text-gray-700 hidden sm:inline">
+                    {s.label}
+                  </span>
+                  {s.step < 3 && (
+                    <div className="w-16 h-0.5 bg-gray-200 mx-2 hidden sm:block" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Form Content */}
+          <div className="px-6 py-6 max-h-[60vh] overflow-y-auto">
+            {step === 1 && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Route Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
+                      placeholder="e.g., Lahug Route"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Barangay *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.barangay}
+                      onChange={(e) =>
+                        setFormData({ ...formData, barangay: e.target.value })
+                      }
+                      placeholder="e.g., Brgy. Lahug"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Assign Truck *
+                    </label>
+                    <select
+                      value={formData.truck}
+                      onChange={(e) =>
+                        setFormData({ ...formData, truck: e.target.value })
+                      }
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                    >
+                      <option value="">Select Truck</option>
+                      {trucks.length > 0 ? (
+                        trucks.map((truck) => (
+                          <option key={truck.id} value={truck.id}>
+                            {truck.name ||
+                              truck.truck_number ||
+                              `Truck ${truck.id}`}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="GT-101">
+                            GT-101 (Capacity: 5 tons)
+                          </option>
+                          <option value="GT-102">
+                            GT-102 (Capacity: 5 tons)
+                          </option>
+                          <option value="GT-103">
+                            GT-103 (Capacity: 8 tons)
+                          </option>
+                          <option value="GT-104">
+                            GT-104 (Capacity: 5 tons)
+                          </option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Driver Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.driver}
+                      onChange={(e) =>
+                        setFormData({ ...formData, driver: e.target.value })
+                      }
+                      placeholder="Full name"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Schedule *
+                    </label>
+                    <input
+                      type="time"
+                      value={formData.schedule.split(" - ")[0] || ""}
+                      onChange={(e) => {
+                        const startHour = parseInt(
+                          e.target.value.split(":")[0],
+                        );
+                        const endHour = startHour + 4;
+                        setFormData({
+                          ...formData,
+                          schedule: `${e.target.value} - ${endHour > 12 ? endHour - 12 : endHour}:${e.target.value.split(":")[1]} ${endHour >= 12 ? "PM" : "AM"}`,
+                        });
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Start time (4-hour route)
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Estimated Waste (kg) *
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.estimatedWaste}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          estimatedWaste: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., 2000"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="space-y-6">
+                {/* Start Point */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                      <Home className="h-4 w-4 text-green-600" />
+                    </div>
+                    <h4 className="font-medium text-gray-900">
+                      Starting Point
+                    </h4>
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.startPoint.address}
+                    onChange={(e) =>
+                      handleAddressChange("startPoint", e.target.value)
+                    }
+                    placeholder="Enter starting address"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                  />
+                  {isGeocoding && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Finding location...
+                    </p>
+                  )}
+                </div>
+
+                {/* Waypoints */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <MapPin className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <h4 className="font-medium text-gray-900">
+                        Stops / Waypoints
+                      </h4>
+                    </div>
+                    <button
+                      onClick={addWaypoint}
+                      className="text-sm text-green-600 hover:text-green-700 flex items-center gap-1"
+                    >
+                      <Plus className="h-4 w-4" /> Add Stop
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {formData.waypoints.map((wp, idx) => (
+                      <div key={idx} className="flex gap-2">
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={wp.address}
+                            onChange={(e) =>
+                              updateWaypoint(idx, e.target.value)
+                            }
+                            placeholder={`Stop ${idx + 1} address`}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                          />
+                          <input
+                            type="text"
+                            value={wp.name || ""}
+                            onChange={(e) => {
+                              const updated = [...formData.waypoints];
+                              updated[idx].name = e.target.value;
+                              setFormData({
+                                ...formData,
+                                waypoints: updated,
+                              });
+                            }}
+                            placeholder="Stop name (optional)"
+                            className="w-full mt-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none text-sm"
+                          />
+                        </div>
+                        <button
+                          onClick={() => removeWaypoint(idx)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* End Point */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                      <Building2 className="h-4 w-4 text-red-600" />
+                    </div>
+                    <h4 className="font-medium text-gray-900">End Point</h4>
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.endPoint.address}
+                    onChange={(e) =>
+                      handleAddressChange("endPoint", e.target.value)
+                    }
+                    placeholder="Enter ending address"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
+                  />
+                </div>
+
+                {/* Map Preview */}
+                {(formData.startPoint.lat ||
+                  formData.endPoint.lat ||
+                  formData.waypoints.length > 0) && (
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
+                      <h4 className="font-medium text-gray-900">
+                        Route Preview
+                      </h4>
+                    </div>
+                    <div style={{ height: "300px" }}>
+                      <MapContainer
+                        center={
+                          formData.startPoint.lat
+                            ? [formData.startPoint.lat, formData.startPoint.lng]
+                            : CEBU_CENTER
+                        }
+                        zoom={13}
+                        style={{ height: "100%", width: "100%" }}
+                      >
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                        <RoutePreviewMap
+                          startPoint={
+                            formData.startPoint.lat
+                              ? [
+                                  formData.startPoint.lat,
+                                  formData.startPoint.lng,
+                                ]
+                              : null
+                          }
+                          endPoint={
+                            formData.endPoint.lat
+                              ? [formData.endPoint.lat, formData.endPoint.lng]
+                              : null
+                          }
+                          waypoints={formData.waypoints
+                            .filter((wp) => wp.lat)
+                            .map((wp) => [wp.lat, wp.lng])}
+                        />
+                        {formData.startPoint.lat && (
+                          <Marker
+                            position={[
+                              formData.startPoint.lat,
+                              formData.startPoint.lng,
+                            ]}
+                          >
+                            <Popup>Start: {formData.startPoint.address}</Popup>
+                          </Marker>
+                        )}
+                        {formData.waypoints.map(
+                          (wp, idx) =>
+                            wp.lat && (
+                              <Marker key={idx} position={[wp.lat, wp.lng]}>
+                                <Popup>{wp.name || `Stop ${idx + 1}`}</Popup>
+                              </Marker>
+                            ),
+                        )}
+                        {formData.endPoint.lat && (
+                          <Marker
+                            position={[
+                              formData.endPoint.lat,
+                              formData.endPoint.lng,
+                            ]}
+                          >
+                            <Popup>End: {formData.endPoint.address}</Popup>
+                          </Marker>
+                        )}
+                        {previewCoordinates.length > 0 && (
+                          <Polyline
+                            positions={previewCoordinates}
+                            color="#22C55E"
+                            weight={4}
+                            opacity={0.7}
+                          />
+                        )}
+                      </MapContainer>
+                    </div>
+                    <div className="bg-gray-50 px-4 py-3 flex justify-between">
+                      <button
+                        onClick={calculateRoute}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                      >
+                        <Navigation className="h-4 w-4" /> Calculate Route
+                      </button>
+                      {formData.distance && (
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-gray-900">
+                            {formData.distance}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formData.duration}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle className="h-5 w-5 text-green-600" />
+                    <h4 className="font-medium text-green-900">
+                      Review Route Details
+                    </h4>
+                  </div>
+                  <p className="text-sm text-green-700">
+                    Please review the route information before creating.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-1">Route Name</p>
+                    <p className="font-medium text-gray-900">
+                      {formData.name || "Not specified"}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-1">Barangay</p>
+                    <p className="font-medium text-gray-900">
+                      {formData.barangay || "Not specified"}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-1">Truck</p>
+                    <p className="font-medium text-gray-900">
+                      {formData.truck || "Not assigned"}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-1">Driver</p>
+                    <p className="font-medium text-gray-900">
+                      {formData.driver || "Not assigned"}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-1">Schedule</p>
+                    <p className="font-medium text-gray-900">
+                      {formData.schedule || "Not set"}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-1">
+                      Estimated Waste
+                    </p>
+                    <p className="font-medium text-gray-900">
+                      {formData.estimatedWaste} kg
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-xs text-gray-500 mb-1">Route Path</p>
+                  <p className="text-sm text-gray-900">
+                    From: {formData.startPoint.address || "Not set"}
+                    <br />
+                    {formData.waypoints.length > 0 && (
+                      <>
+                        Stops:{" "}
+                        {formData.waypoints.map((wp) => wp.address).join(" → ")}
+                        <br />
+                      </>
+                    )}
+                    To: {formData.endPoint.address || "Not set"}
+                  </p>
+                </div>
+
+                {formData.notes && (
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-1">Notes</p>
+                    <p className="text-sm text-gray-900">{formData.notes}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="bg-gray-50 px-6 py-4 flex justify-between">
+            <button
+              onClick={() => (step > 1 ? setStep(step - 1) : onClose())}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-white transition-colors text-gray-700"
+            >
+              {step > 1 ? "Back" : "Cancel"}
+            </button>
+            {step < 3 ? (
+              <button
+                onClick={() => setStep(step + 1)}
+                disabled={
+                  (step === 1 &&
+                    (!formData.name ||
+                      !formData.barangay ||
+                      !formData.truck ||
+                      !formData.driver)) ||
+                  (step === 2 &&
+                    (!formData.startPoint.lat || !formData.endPoint.lat))
+                }
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" /> Create Route
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const RoutesPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -114,9 +894,18 @@ const RoutesPage = () => {
   const [showCompleted, setShowCompleted] = useState(true);
   const [mapLayer, setMapLayer] = useState("standard");
   const [expandedRoute, setExpandedRoute] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Available trucks data
+  const availableTrucks = [
+    { id: "GT-101", name: "GT-101", capacity: "5 tons", status: "Available" },
+    { id: "GT-102", name: "GT-102", capacity: "5 tons", status: "Available" },
+    { id: "GT-103", name: "GT-103", capacity: "8 tons", status: "On Route" },
+    { id: "GT-104", name: "GT-104", capacity: "5 tons", status: "Available" },
+  ];
 
   // Enhanced routes data with coordinates
-  const routes = [
+  const [routes, setRoutes] = useState([
     {
       id: "route-1",
       name: "Lahug Route",
@@ -405,7 +1194,7 @@ const RoutesPage = () => {
         { date: "Fri", efficiency: 0, waste: 0 },
       ],
     },
-  ];
+  ]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -435,6 +1224,11 @@ const RoutesPage = () => {
       default:
         return <AlertCircle className="h-4 w-4 text-neutral-600" />;
     }
+  };
+
+  // Handle new route creation
+  const handleNewRoute = (newRoute) => {
+    setRoutes((prevRoutes) => [...prevRoutes, newRoute]);
   };
 
   // Filter routes
@@ -491,6 +1285,14 @@ const RoutesPage = () => {
 
   return (
     <div className="space-y-6">
+      {/* New Route Modal */}
+      <NewRouteModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleNewRoute}
+        trucks={availableTrucks}
+      />
+
       {/* Header */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-neutral-200">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -535,7 +1337,10 @@ const RoutesPage = () => {
                 Analytics
               </button>
             </div>
-            <button className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+            >
               <Plus className="h-5 w-5" />
               <span className="text-sm font-medium">New Route</span>
             </button>
